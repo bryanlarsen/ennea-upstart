@@ -1,0 +1,7 @@
+description "Consul Template upstart-docker plugin inner template 2"
+start on started consul
+stop on runlevel [06]
+
+exec %CONSUL_TEMPLATE_EXEC% {{ range ls "enneahost/images" }} -template "%TEMPLATE_DIR%/{{ .Key }}.upstart.ctmpl:/etc/init/docker-{{ .Key }}.conf:stop docker-{{ .Key }} || true && start docker-{{ .Key }}" {{ end }}
+
+respawn

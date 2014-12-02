@@ -1,0 +1,7 @@
+description "Consul Template upstart-docker plugin outer template"
+start on started consul
+stop on runlevel [06]
+
+exec %CONSUL_TEMPLATE_EXEC% -template "%TEMPLATE_DIR%/consul-template-upstart-docker-1.upstart.ctmpl:/etc/init/consul-template-upstart-docker-1.conf:service consul-template-upstart-docker-1 restart" -template "%TEMPLATE_DIR%/consul-template-upstart-docker-2.upstart.ctmpl:/etc/init/consul-template-upstart-docker-2.conf:service consul-template-upstart-docker-2 restart"
+
+respawn

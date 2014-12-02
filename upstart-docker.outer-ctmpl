@@ -1,0 +1,47 @@
+{{ with $json := key "enneahost/images/%NAME%" | parseJSON }}
+# upstart is really bad at keeping track of process id's, so we have to be all complicated.
+# https://gist.github.com/ismell/6281967
+
+description "Docker Container: %NAME%"
+start on filesystem and started docker and started consul
+stop on stopping docker
+kill timeout 20 # longer than docker timeout of 10 seconds
+kill signal CONT # don't send TERM
+respawn
+
+pre-start script
+  mkdir -p /var/run/docker
+
+  # Wait for docker to finish starting up first.
+  FILE=/var/run/docker.sock
+  while [ ! -e $FILE ] ; do
+    sleep 1
+  done
+end script
+
+script
+  [ -f "/var/run/docker/%NAME%.cid" ] && { ID="$(cat /var/run/docker/%NAME%.cid)"; }
+
+  if [ ! -z "${ID}" ] && ( docker ps | grep -q "${ID}" ); then
+    exec docker wait "${ID}"
+  else
+    exec docker run {{ or $json.run_options "" }} "{{ or $json.namespace "localhost:5000" }}/%NAME%:{{ or $json.tag "latest" }}" {{ or $json.run_cmd ""}}
+  fi
+end script
+
+post-start script
+  [ -f "/var/run/docker/%NAME%.cid" ] && { ID="$(cat /var/run/docker/%NAME%.cid)"; }
+
+  if [ -z "${ID}" ] || ! ( docker ps | grep -q "${ID}" ); then
+    while ! ( docker ps | grep -q "{{ or $json.namespace "localhost:5000" }}/%NAME%:{{ or $json.tag "latest" }}" ) ; do sleep 1 ; done
+    docker ps | grep "{{ or $json.namespace "localhost:5000" }}/%NAME%:{{ or $json.tag "latest" }}" | cut -d " " -f 1 > /var/run/docker/%NAME%.cid
+  fi
+end script
+
+pre-stop script
+  [ -f "/var/run/docker/%NAME%.cid" ] && { ID="$(cat /var/run/docker/%NAME%.cid)"; }
+  if [ ! -z "${ID}" ]; then
+     docker stop "${ID}" && rm /var/run/docker/%NAME%.cid
+  fi
+end script
+{{ end }}

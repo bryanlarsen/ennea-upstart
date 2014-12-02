@@ -1,0 +1,13 @@
+description "Consul Template upstart-docker plugin inner template"
+start on started consul
+stop on runlevel [06]
+
+pre-start script
+{{ range ls "enneahost/images" }}
+sed -e "s!%NAME%!{{ .Key }}!g" < "%TEMPLATE_DIR%/upstart-docker.outer-ctmpl" > "%TEMPLATE_DIR%/{{ .Key }}.upstart.outer-ctmpl"
+{{ end }}
+end script
+
+exec %CONSUL_TEMPLATE_EXEC% {{ range ls "enneahost/images" }} -template "%TEMPLATE_DIR%/{{ .Key }}.upstart.outer-ctmpl:%TEMPLATE_DIR%/{{ .Key }}.upstart.ctmpl:service consul-template-upstart-docker-2 service" {{ end }}
+
+respawn
